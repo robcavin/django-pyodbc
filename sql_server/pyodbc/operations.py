@@ -3,6 +3,8 @@ from sql_server.pyodbc import query
 import datetime
 import time
 import decimal
+from django.utils import timezone
+from django.conf import settings
 
 class DatabaseOperations(BaseDatabaseOperations):
     compiler_module = "sql_server.pyodbc.compiler"
@@ -272,6 +274,17 @@ class DatabaseOperations(BaseDatabaseOperations):
         """
         if value is None:
             return None
+
+        #RDC - Add reverse timezone support
+        if settings.USE_TZ:
+            if timezone.is_naive(value):
+                warnings.warn(u"SQLite received a naive datetime (%s)"
+                          u" while time zone support is active." % value,
+                          RuntimeWarning)
+                default_timezone = timezone.get_default_timezone()
+                value = timezone.make_aware(value, default_timezone)
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+
         # SQL Server doesn't support microseconds
         return value.replace(microsecond=0)
 
@@ -324,6 +337,9 @@ class DatabaseOperations(BaseDatabaseOperations):
         if value is None:
             return None
         if field and field.get_internal_type() == 'DateTimeField':
+            #RDC add timezone support 
+            if value is not None and settings.USE_TZ and timezone.is_naive(value):
+                value = value.replace(tzinfo=timezone.utc)
             return value
         elif field and field.get_internal_type() == 'DateField':
             value = value.date() # extract date
