@@ -343,7 +343,7 @@ class DatabaseOperations(BaseDatabaseOperations):
             return value
         elif field and field.get_internal_type() == 'DateField':
             value = value.date() # extract date
-        elif field and field.get_internal_type() == 'TimeField' or (isinstance(value, datetime.datetime) and value.year == 1900 and value.month == value.day == 1):
+        elif field and field.get_internal_type() == 'TimeField': #RDC - or (isinstance(value, datetime.datetime) and value.year == 1900 and value.month == value.day == 1):
             value = value.time() # extract time
         # Some cases (for example when select_related() is used) aren't
         # caught by the DateField case above and date fields arrive from
@@ -353,10 +353,13 @@ class DatabaseOperations(BaseDatabaseOperations):
         # query results in valid date+time values with the time part set
         # to midnight, this workaround can surprise us by converting them
         # to the datetime.date Python type).
-        elif isinstance(value, datetime.datetime) and value.hour == value.minute == value.second == value.microsecond == 0:
-            value = value.date()
+        elif isinstance(value, datetime.datetime): #RDC -and value.hour == value.minute == value.second == value.microsecond == 0:
+            #RDC - value = value.date()
+            if value is not None and settings.USE_TZ and timezone.is_naive(value):
+                value = value.replace(tzinfo=timezone.utc)
+            return value
         # Force floats to the correct type
         elif value is not None and field and field.get_internal_type() == 'FloatField':
             value = float(value)
         return value
-        
+
